@@ -99,6 +99,16 @@ body {
   border-radius: 7px; padding: 5px 8px; font: inherit; outline: none;
 }
 .field input:focus { border-color: var(--accent); }
+.model-sel {
+  flex: 1; background: #0d1117; border: 1px solid var(--line); color: var(--text);
+  border-radius: 7px; padding: 5px 8px; font: inherit; outline: none; cursor: pointer;
+}
+.model-sel:focus { border-color: var(--accent); }
+.model-custom {
+  width: 100%; margin: -2px 0 8px; background: #0d1117; border: 1px solid var(--line);
+  color: var(--text); border-radius: 7px; padding: 5px 8px; font: inherit; outline: none;
+}
+.model-custom:focus { border-color: var(--accent); }
 .row { display: flex; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
 .btn {
   background: var(--accent); border: none; color: #fff; padding: 6px 14px;

@@ -173,13 +173,17 @@ function render() {
   applyView();
   save();
 }
-function refreshBody(node) {
+function refreshBody(node, focusKey) {
   const el = document.querySelector(`.node[data-id="${node.id}"]`);
   if (!el) return;
   const body = el.querySelector('.node-body');
   body.innerHTML = bodyHTML(node);
   bindBody(node, el);
   renderEdges();
+  if (focusKey) {
+    const f = document.querySelector(`.node[data-id="${node.id}"] [data-sync-key="${focusKey}"]`);
+    if (f) f.focus();
+  }
 }
 function refreshBodyKeepFocus(node) {
   const el = document.querySelector(`.node[data-id="${node.id}"]`);
@@ -262,6 +266,20 @@ function createNodeEl(node) {
   return el;
 }
 
+function modelField(node, listId, list, fallback) {
+  const cur = node.data.model || fallback;
+  const isCustom = node.data._custom === true || !list.includes(cur);
+  const opts = list.map((m) => `<option value="${m}" ${m === cur ? 'selected' : ''}>${m}</option>`).join('');
+  return `
+    <div class="field"><label>模型</label>
+      <select class="model-sel" data-sync-key="model-sel">
+        ${opts}
+        <option value="__custom__" ${isCustom ? 'selected' : ''}>✎ 自定义…</option>
+      </select>
+    </div>
+    ${isCustom ? `<input class="model-custom" data-sync-key="model-custom" list="${listId}" value="${esc(cur)}" placeholder="输入任意模型 id"/>` : ''}`;
+}
+
 function bodyHTML(node) {
   const d = node.data;
   if (node.type === 'prompt') {
@@ -271,8 +289,7 @@ function bodyHTML(node) {
   if (node.type === 'image') {
     const src = d.remoteUrl || d.url || '';
     return `
-      <div class="field"><label>模型</label>
-        <input class="model" data-sync-key="model" list="image-models" value="${esc(d.model || 'gpt-4o-image')}"/></div>
+      ${modelField(node, 'image-models', state.models.image, 'gpt-4o-image')}
       <textarea class="ta prompt" data-sync-key="prompt" placeholder="提示词（留空则使用连线文本）">${esc(d.prompt || '')}</textarea>
       <div class="row">
         <button class="btn gen">生成图片</button>
@@ -291,8 +308,7 @@ function bodyHTML(node) {
     const vid = d.videoUrl || '';
     const prog = parseInt(d.progress) || 0;
     return `
-      <div class="field"><label>模型</label>
-        <input class="model" data-sync-key="model" list="video-models" value="${esc(d.model || 'wan2.2-kf2v-flash')}"/></div>
+      ${modelField(node, 'video-models', state.models.video, 'wan2.2-kf2v-flash')}
       <textarea class="ta prompt" data-sync-key="prompt" placeholder="提示词 / 运镜描述（留空则使用连线文本）">${esc(d.prompt || '')}</textarea>
       <div class="frames">
         ${frameSlot('first', '首帧', first, firstConn)}
@@ -329,7 +345,19 @@ function bindBody(node, el) {
     i.addEventListener('input', () => { fn(i.value); save(); });
     i.addEventListener('change', () => { fn(i.value); save(); });
   };
-  sync('.model', 'model', (v) => { node.data.model = v; });
+  const sel = body.querySelector('.model-sel');
+  if (sel) sel.addEventListener('change', () => {
+    if (sel.value === '__custom__') {
+      node.data._custom = true;
+      refreshBody(node, 'model-custom');
+    } else {
+      node.data._custom = false;
+      node.data.model = sel.value;
+      refreshBody(node); save();
+    }
+  });
+  const cin = body.querySelector('.model-custom');
+  if (cin) cin.addEventListener('input', () => { node.data.model = cin.value; save(); });
   sync('.duration', 'duration', (v) => { node.data.duration = Number(v); });
   sync('.resolution', 'resolution', (v) => { node.data.resolution = v; });
   sync('.prompt-text', 'text', (v) => { node.data.text = v; });
