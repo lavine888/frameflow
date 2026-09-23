@@ -224,6 +224,16 @@ def _video_body(req: VideoRequest) -> Dict[str, Any]:
         body.update(req.extra)
         return body
 
+    if req.model.lower().startswith("veo"):
+        # veo3 系：不能传 duration（传 int/str 都会被拒），分辨率决定清晰度
+        body = {"model": req.model, "prompt": req.prompt}
+        if req.images:
+            body["images"] = req.images
+        if req.resolution:
+            body["resolution"] = req.resolution
+        body.update(req.extra)
+        return body
+
     body = {"model": req.model, "prompt": req.prompt}
     if req.images:
         body["images"] = req.images

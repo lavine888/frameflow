@@ -71,6 +71,26 @@ Workbench/
 
 实测产出：`1344×768 / 24fps / 6.58s`（`duration=6`）。上游偶发 SSL EOF，`_request()` 会自动重试。
 
+## 模型实测结论（同一中继，2026-09）
+
+| 模型 | 可用性 | 产出 | 首帧一致性 SSIM | 备注 |
+| --- | --- | --- | --- | --- |
+| MiniMax-H3 768P | ✅ | 1344×768 / 24fps | 0.90 | 包作者同款；原生音频 |
+| MiniMax-H3 2K | ✅ 约 5 分钟/条 | 2560×1440 / 24fps | 0.96 | 同模型，分辨率拉满 |
+| wan2.7-i2v 1080P | ✅ 约 1 分钟/条 | 1920×1080 / 30fps | **0.97** | `duration` 仅 `5/10/15`；无原生音频 |
+| veo3 / veo3.1 | ⚠️ 持续 429 拥堵 | — | — | **不能传 `duration`**，传 int/str 都被拒 |
+| doubao-seedance-2-5-260628 | ⚠️ `quota_not_enough` | — | — | 形状同 wan 系 |
+| sora-2-hd | ❌ | — | — | `GetModelFixedPrice not found` |
+| jimeng-video-3.5-pro | ❌ | — | — | `No available channel` |
+
+同镜头多模型对照：`python tools/shootout.py --job J03`
+
+高清拼接（原包工具硬编码 854×480，这个可调）：
+
+```bash
+python tools/assemble_hd.py --renders renders_2k --output output/xxx_720p.mp4 --width 1280 --height 720
+```
+
 ## 端到端实跑
 
 `tools/e2e.cjs`（Playwright）会自动打开工作台，跑完「生成首帧 → 生成尾帧 → 首尾帧合成视频」：

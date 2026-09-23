@@ -77,6 +77,12 @@ def load_jobs():
     return {j["id"]: j for j in data["jobs"]}
 
 
+def needed_seconds(jid):
+    """从时间线算出该任务实际需要的素材长度（如 J01 需 0–5.5s）。"""
+    tl = json.loads((PKG / "时间线_00-30.json").read_text(encoding="utf-8"))
+    return max((s["source_in"] + s["duration"] for s in tl["shots"] if s.get("job_id") == jid), default=0.0)
+
+
 def load_state():
     if STATE.exists():
         return json.loads(STATE.read_text(encoding="utf-8"))
@@ -148,19 +154,21 @@ def download(url, dest: Path):
 
 def run_job(jid, job, args):
     """返回 (jid, status, info)；status ∈ ok / skipped / failed"""
-    dest = PKG / job["output"]
+    dest = PKG / args.out_dir / f"{jid}.mp4"
+    dur = args.durations.get(jid, args.duration) if args.durations else args.duration
     if dest.exists() and not args.force:
         log(f"[{jid}] {job['name']} — 已存在 {dest.name} ({dest.stat().st_size // 1024}KB)，跳过")
         return jid, "skipped", str(dest)
 
-    log(f"[{jid}] {job['name']}  ({'+'.join(job['shots'])})  首帧={Path(job['first_frame']).name}")
+    log(f"[{jid}] {job['name']}  ({'+'.join(job['shots'])})  首帧={Path(job['first_frame']).name}  "
+        f"时长={dur}s 需≥{needed_seconds(jid):.1f}s")
     try:
-        res = submit(job, args.model, args.duration, args.resolution, args.max_width)
+        res = submit(job, args.model, dur, args.resolution, args.max_width)
         tid = res["task_id"]
         log(f"[{jid}] task_id={tid}")
         state = load_state()
         state[jid] = {
-            "task_id": tid, "model": args.model, "duration": args.duration,
+            "task_id": tid, "model": args.model, "duration": dur,
             "resolution": args.resolution, "shots": job["shots"],
             "at": time.strftime("%F %T"),
         }
@@ -185,6 +193,8 @@ def main():
     ap.add_argument("--model", default=DEFAULT_MODEL)
     ap.add_argument("--duration", type=int, default=6, help="秒；0=不传，用平台默认")
     ap.add_argument("--resolution", default="768P", help="480P / 768P / 2K；空=不传")
+    ap.add_argument("--out-dir", default="renders", help="结果写到包的哪个子目录")
+    ap.add_argument("--duration-options", default="", help='模型只支持固定档位时，如 "5,10,15"，按镜头自动选')
     ap.add_argument("--max-width", type=int, default=1280, help="首帧压缩到该宽度（0=原图）")
     ap.add_argument("--timeout", type=int, default=3000, help="单条最长等待秒数")
     ap.add_argument("--parallel", type=int, default=1, help="并发条数")
@@ -204,9 +214,17 @@ def main():
     if not todo:
         ap.error("用 --jobs J01 ... 或 --all 指定任务")
 
-    log(f"模型={args.model}  时长={args.duration or '默认'}s  分辨率={args.resolution or '默认'}  "
-        f"并发={args.parallel}  首帧宽={args.max_width or '原图'}")
-    log(f"输出目录: {PKG / 'renders'}")
+    args.durations = {}
+    if args.duration_options:
+        opts = sorted(int(x) for x in args.duration_options.split(","))
+        for jid in todo:
+            need = needed_seconds(jid)
+            pick = next((o for o in opts if o >= need), opts[-1])
+            args.durations[jid] = pick
+
+    log(f"模型={args.model}  时长={args.durations or (args.duration or '默认')}s  "
+        f"分辨率={args.resolution or '默认'}  并发={args.parallel}  首帧宽={args.max_width or '原图'}")
+    log(f"输出目录: {PKG / args.out_dir}")
     log()
 
     t0 = time.time()
