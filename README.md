@@ -91,6 +91,25 @@ Workbench/
 python tools/assemble_hd.py --renders renders_2k --output output/xxx_720p.mp4 --width 1280 --height 720
 ```
 
+## 《断航》90 秒舰战（25fps / 2250 帧）
+
+源包：`熊酒馆_断航_分镜与MD说明_v2.0`（24 镜 B01–B24，25fps / 90s）。
+
+```bash
+python tools/duanhang.py --prep-only            # 关键帧 → 16:9 裁切放大到 1280x720
+python tools/duanhang.py --all --parallel 6     # 逐镜生成（MiniMax-H3 @2K）
+python tools/assemble_duanhang.py --width 1920 --height 1080
+```
+
+实测结果：1920×1080 / 25fps / **2250 帧** / 90.04s / AAC 立体声；逐镜首帧保真 SSIM 均值 0.891。
+
+**为什么用 MiniMax-H3**：它是唯一支持 **4–15s 任意整数时长**的模型，而本包最长镜 14.88s——
+每镜一次生成，不用拆镜。且自带原生立体声（本包没有提供声音 WAV）。
+
+**关键帧只能“保真放大”，不能 AI 重绘**：K01–K24 只有 677×356。用 `gpt-image-2.5` 带参考图重绘，
+输出构图与原图 SSIM 只有 **0.23**（完全改掉了构图），不可用。改用中心裁切 16:9 + LANCZOS 放大 +
+轻度 USM，构图保真 1.0，细节交给视频模型自己补。
+
 ## 端到端实跑
 
 `tools/e2e.cjs`（Playwright）会自动打开工作台，跑完「生成首帧 → 生成尾帧 → 首尾帧合成视频」：

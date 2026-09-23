@@ -120,6 +120,7 @@ class ImageRequest(BaseModel):
     mode: str = "auto"          # auto | chat | images
     size: Optional[str] = None
     n: int = 1
+    images: List[str] = []      # 参考图（图生图 / 高清重绘）
     extra: Dict[str, Any] = {}
 
 
@@ -149,9 +150,14 @@ def models():
 
 
 def _image_chat(req: ImageRequest) -> Dict[str, Any]:
+    if req.images:
+        content: Any = [{"type": "text", "text": req.prompt}]
+        content += [{"type": "image_url", "image_url": {"url": u}} for u in req.images]
+    else:
+        content = req.prompt
     body: Dict[str, Any] = {
         "model": req.model,
-        "messages": [{"role": "user", "content": req.prompt}],
+        "messages": [{"role": "user", "content": content}],
         "stream": False,
     }
     body.update(req.extra)
