@@ -18,3 +18,6 @@ server.log
 Thumbs.db
 .idea/
 .vscode/
+
+# e2e run outputs
+runs/

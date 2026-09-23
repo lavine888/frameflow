@@ -60,6 +60,20 @@ Workbench/
    └─ app.js            # 画布 / 节点 / 连线 / 生成逻辑
 ```
 
+## 端到端实跑
+
+`tools/e2e.cjs`（Playwright）会自动打开工作台，跑完「生成首帧 → 生成尾帧 → 首尾帧合成视频」：
+
+```bash
+NODE_PATH="<playwright 所在 node_modules>" node tools/e2e.cjs
+```
+
+实跑截图（真实产出）：
+
+| 首帧 | 尾帧 | 视频 |
+| --- | --- | --- |
+| ![](docs/run-1-first.png) | ![](docs/run-2-last.png) | ![](docs/run-3-video.png) |
+
 ## 继续开发的小提示
 
 - 模型清单在 `server.py` 顶部的 `IMAGE_MODELS` / `VIDEO_MODELS`，前端是 `datalist`，可直接手输任意模型 id。
