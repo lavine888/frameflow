@@ -12,6 +12,7 @@ FrameFlow — 极简 AI 图片 / 视频工作台后端
 """
 import os
 import re
+import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -64,6 +65,18 @@ VIDEO_MODELS = [
 
 def _headers() -> Dict[str, str]:
     return {"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json"}
+
+
+def _request(method: str, url: str, **kw) -> requests.Response:
+    """上游偶发 SSL EOF / 连接重置，自动重试。"""
+    last: Optional[Exception] = None
+    for i in range(5):
+        try:
+            return SESSION.request(method, url, **kw)
+        except (requests.exceptions.SSLError, requests.exceptions.ConnectionError) as e:
+            last = e
+            time.sleep(1.5 * (i + 1))
+    raise last  # type: ignore[misc]
 
 
 def _require_key() -> None:
@@ -192,12 +205,26 @@ def generate_image(req: ImageRequest):
     raise HTTPException(502, "；".join(errors))
 
 
-@app.post("/api/video")
-def generate_video(req: VideoRequest):
-    _require_key()
-    if not req.prompt.strip() and not req.images:
-        raise HTTPException(400, "prompt 和图片不能同时为空")
-    body: Dict[str, Any] = {"model": req.model, "prompt": req.prompt}
+def _video_body(req: VideoRequest) -> Dict[str, Any]:
+    """MiniMax / hailuo 系走 content 数组 + 必填 duration/resolution；其余走 images 数组。"""
+    if req.model.lower().startswith("minimax"):
+        content: List[Dict[str, Any]] = []
+        if req.prompt.strip():
+            content.append({"type": "text", "text": req.prompt})
+        for u in req.images:
+            content.append({"type": "image_url", "image_url": {"url": u}})
+        body: Dict[str, Any] = {
+            "model": req.model,
+            "content": content,
+            "duration": req.duration or 6,
+            "resolution": req.resolution or "768P",   # 仅支持 480P / 768P / 2K
+        }
+        if not req.images:
+            body["ratio"] = "16:9"                      # 纯文生视频必填
+        body.update(req.extra)
+        return body
+
+    body = {"model": req.model, "prompt": req.prompt}
     if req.images:
         body["images"] = req.images
     if req.duration:
@@ -205,8 +232,17 @@ def generate_video(req: VideoRequest):
     if req.resolution:
         body["resolution"] = req.resolution
     body.update(req.extra)
+    return body
 
-    r = SESSION.post(f"{BASE_URL}/video/generations", headers=_headers(), json=body, timeout=180)
+
+@app.post("/api/video")
+def generate_video(req: VideoRequest):
+    _require_key()
+    if not req.prompt.strip() and not req.images:
+        raise HTTPException(400, "prompt 和图片不能同时为空")
+    body = _video_body(req)
+
+    r = _request("POST", f"{BASE_URL}/video/generations", headers=_headers(), json=body, timeout=180)
     data = r.json() if r.content else {}
     if r.status_code >= 400:
         raise HTTPException(502, _err(data, r.status_code))
@@ -223,7 +259,7 @@ def generate_video(req: VideoRequest):
 @app.get("/api/tasks/{task_id}")
 def get_task(task_id: str):
     _require_key()
-    r = SESSION.get(f"{BASE_URL}/tasks/{task_id}", headers=_headers(), timeout=60)
+    r = _request("GET", f"{BASE_URL}/tasks/{task_id}", headers=_headers(), timeout=60)
     data = r.json() if r.content else {}
     if r.status_code >= 400:
         raise HTTPException(502, _err(data, r.status_code))

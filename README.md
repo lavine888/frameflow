@@ -60,6 +60,17 @@ Workbench/
    └─ app.js            # 画布 / 节点 / 连线 / 生成逻辑
 ```
 
+## 视频模型备忘（实测）
+
+| 模型族 | 请求体 | 必填 | 分辨率 |
+| --- | --- | --- | --- |
+| wan / veo / seedance … | `{model, prompt, images:[首帧, 尾帧]}` | — | 视模型而定 |
+| **MiniMax-H3**（hailuo 通道） | `{model, content:[{type:text,…},{type:image_url,…}], duration, resolution}` | `duration` + `resolution` | 仅 `480P / 768P / 2K` |
+
+`MiniMax-H3` 走的是 MiniMax / Hailuo 原生协议：图片必须放进 `content` 数组的 `image_url` 部分（**不是** `images` 字段），且 `duration`、`resolution` 缺一不可；纯文生视频还要补 `ratio`（如 `16:9`）。后端 `_video_body()` 已自动做这层适配，前端照常填 `images` 即可。
+
+实测产出：`1344×768 / 24fps / 6.58s`（`duration=6`）。上游偶发 SSL EOF，`_request()` 会自动重试。
+
 ## 端到端实跑
 
 `tools/e2e.cjs`（Playwright）会自动打开工作台，跑完「生成首帧 → 生成尾帧 → 首尾帧合成视频」：
