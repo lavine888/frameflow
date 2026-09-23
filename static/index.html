@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FrameFlow · AI 图片/视频工作台</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header id="topbar">
+    <div class="brand">🎬 <span>FrameFlow</span></div>
+    <button class="tb" id="btn-add-prompt">＋ 文本</button>
+    <button class="tb" id="btn-add-image">＋ 图片</button>
+    <button class="tb" id="btn-add-video">＋ 视频</button>
+    <div class="spacer"></div>
+    <button class="tb" id="btn-demo">示例工作流</button>
+    <button class="tb" id="btn-fit">适应视图</button>
+    <button class="tb danger" id="btn-clear">清空</button>
+    <span id="api-status"></span>
+  </header>
+
+  <div id="stage">
+    <div id="world">
+      <div id="nodes"></div>
+    </div>
+    <svg id="edges">
+      <g id="edge-group"></g>
+      <path id="tempEdge" class="temp-edge" d=""></path>
+    </svg>
+    <div id="hint">滚轮缩放 · 拖拽空白平移 · 从右侧圆点拖到左侧圆点连线 · 点击连线可删除</div>
+  </div>
+
+  <datalist id="image-models"></datalist>
+  <datalist id="video-models"></datalist>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
